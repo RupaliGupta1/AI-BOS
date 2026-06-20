@@ -7,6 +7,9 @@ import com.aibos.identity.entity.User;
 import com.aibos.identity.enums.Tier;
 import com.aibos.identity.exception.custom.StripeWebhookException;
 import com.aibos.identity.repository.UserRepository;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.*;
@@ -45,7 +48,17 @@ public class StripeService {
             User user,
             CreateCheckoutSessionRequest request
     ) {
-        Tier requestedTier = Tier.valueOf(request.tier().toUpperCase());
+        if (request == null || request.tier() == null || request.tier().isBlank()) {
+            throw new IllegalArgumentException("tier is required");
+        }
+
+        Tier requestedTier;
+        try {
+            requestedTier = Tier.valueOf(request.tier().trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "Invalid tier '" + request.tier() + "'. Must be one of: PRO, ENTERPRISE");
+        }
 
         if (requestedTier == Tier.FREE) {
             throw new IllegalArgumentException("Cannot create checkout session for FREE tier");
@@ -67,7 +80,7 @@ public class StripeService {
                                     .build()
                     );
 
-            if (user.getStripeCustomerId() != null) {
+            if (user.getStripeCustomerId() != null && !user.getStripeCustomerId().isBlank()) {
                 paramsBuilder.setCustomer(user.getStripeCustomerId());
             } else {
                 paramsBuilder.setCustomerEmail(user.getEmail());
@@ -75,7 +88,6 @@ public class StripeService {
 
             Session session = Session.create(paramsBuilder.build());
 
-            // DIAGNOSTIC: confirm metadata was actually attached at creation time
             log.info("Checkout session created: id={} user={} tier={} metadata={}",
                     session.getId(), user.getId(), requestedTier, session.getMetadata());
 
@@ -90,18 +102,29 @@ public class StripeService {
     // ── Webhook handling ──────────────────────────────────────────────────────
 
     public void handleWebhook(String payload, String sigHeader) {
+        if (payload == null || payload.isBlank()) {
+            throw new StripeWebhookException("Empty webhook payload");
+        }
+        if (sigHeader == null || sigHeader.isBlank()) {
+            throw new StripeWebhookException("Missing Stripe-Signature header");
+        }
+
         Event event;
         try {
             event = Webhook.constructEvent(payload, sigHeader,
                     stripeProperties.webhookSecret());
         } catch (SignatureVerificationException e) {
-            log.error("Stripe signature verification FAILED — check STRIPE_WEBHOOK_SECRET matches the CLI output", e);
+            log.error("Stripe signature verification FAILED — check STRIPE_WEBHOOK_SECRET matches the CLI output. " +
+                    "Error: {}", e.getMessage());
             throw new StripeWebhookException("Invalid Stripe signature");
+        } catch (Exception e) {
+            // Catch malformed JSON / unexpected payload shape rather than 500-ing blindly
+            log.error("Failed to construct Stripe event from payload: {}", e.getMessage(), e);
+            throw new StripeWebhookException("Could not parse Stripe webhook payload: " + e.getMessage());
         }
 
-        // DIAGNOSTIC: this MUST appear in your logs for every Stripe event.
-        // If it never appears, the webhook isn't reaching this server at all.
-        log.info("=== STRIPE WEBHOOK RECEIVED === type={} id={}", event.getType(), event.getId());
+        log.info("=== STRIPE WEBHOOK RECEIVED === type={} id={} api_version={}",
+                event.getType(), event.getId(), event.getApiVersion());
 
         try {
             switch (event.getType()) {
@@ -112,9 +135,16 @@ public class StripeService {
                 default -> log.info("Unhandled Stripe event type: {}", event.getType());
             }
             log.info("=== WEBHOOK PROCESSED SUCCESSFULLY === id={}", event.getId());
+        } catch (StripeWebhookException e) {
+            // Known, expected failure modes (missing metadata, user not found, etc.)
+            // Re-throw as-is so GlobalExceptionHandler returns 400 → Stripe will retry.
+            log.error("=== WEBHOOK PROCESSING FAILED (expected) === id={} type={} error={}",
+                    event.getId(), event.getType(), e.getMessage());
+            throw e;
         } catch (Exception e) {
-            // DIAGNOSTIC: catch-all so we ALWAYS see the real error, not a silent 500
-            log.error("=== WEBHOOK PROCESSING FAILED === id={} type={} error={}",
+            // Unexpected failure — log full stack trace for debugging, still propagate
+            // so Stripe retries (returning 200 here would silently lose the event forever).
+            log.error("=== WEBHOOK PROCESSING FAILED (unexpected) === id={} type={} error={}",
                     event.getId(), event.getType(), e.getMessage(), e);
             throw e;
         }
@@ -123,29 +153,78 @@ public class StripeService {
     // ── Private webhook handlers ──────────────────────────────────────────────
 
     private void handleCheckoutCompleted(Event event) {
-        Session session = (Session) event.getDataObjectDeserializer()
-                .getObject()
-                .orElseThrow(() -> new StripeWebhookException(
-                        "Could not deserialize Session object from event " + event.getId() +
-                                " — possible Stripe API version mismatch"));
+        JsonObject raw = getRawJson(event);
+        Optional<StripeObject> deserialized = event.getDataObjectDeserializer().getObject();
 
-        log.info("checkout.session.completed: session_id={} metadata={} customer={} subscription={}",
-                session.getId(), session.getMetadata(), session.getCustomer(), session.getSubscription());
+        String sessionId;
+        String customerId;
+        String subscriptionId;
+        Long amountTotal;
+        String userId;
+        String tierName;
+        String paymentStatus;
 
-        String userId   = session.getMetadata() != null ? session.getMetadata().get("user_id") : null;
-        String tierName = session.getMetadata() != null ? session.getMetadata().get("tier") : null;
+        if (deserialized.isPresent() && deserialized.get() instanceof Session session) {
+            sessionId       = session.getId();
+            customerId      = extractId(session.getCustomer());
+            subscriptionId  = extractId(session.getSubscription());
+            amountTotal     = session.getAmountTotal();
+            paymentStatus   = session.getPaymentStatus();
+            userId          = session.getMetadata() != null ? session.getMetadata().get("user_id") : null;
+            tierName        = session.getMetadata() != null ? session.getMetadata().get("tier") : null;
+        } else {
+            log.warn("Typed deserialization unavailable for checkout.session.completed (event {}). " +
+                    "Using raw JSON.", event.getId());
+            sessionId      = getAsString(raw, "id");
+            customerId     = extractIdFromJson(raw, "customer");
+            subscriptionId = extractIdFromJson(raw, "subscription");
+            amountTotal    = getAsLongOrNull(raw, "amount_total");
+            paymentStatus  = getAsString(raw, "payment_status");
 
-        if (userId == null || tierName == null) {
-            log.error("MISSING METADATA on session {}. Full metadata map: {}. " +
-                            "This means metadata was not attached at session creation, " +
-                            "or this event predates a code change.",
-                    session.getId(), session.getMetadata());
-            throw new StripeWebhookException(
-                    "Missing user_id/tier metadata in checkout session " + session.getId());
+            JsonObject metadata = (raw.has("metadata") && raw.get("metadata").isJsonObject())
+                    ? raw.getAsJsonObject("metadata") : null;
+            userId   = metadata != null ? getAsString(metadata, "user_id") : null;
+            tierName = metadata != null ? getAsString(metadata, "tier") : null;
         }
 
-        User user = findUserById(UUID.fromString(userId));
-        Tier newTier = Tier.valueOf(tierName);
+        log.info("checkout.session.completed: session_id={} user_id={} tier={} customer={} subscription={} payment_status={}",
+                sessionId, userId, tierName, customerId, subscriptionId, paymentStatus);
+
+        // Guard: only process if payment actually completed.
+        // "open" or "expired" sessions should not trigger an upgrade.
+        if (paymentStatus != null && !"paid".equalsIgnoreCase(paymentStatus)
+                && !"no_payment_required".equalsIgnoreCase(paymentStatus)) {
+            log.warn("checkout.session.completed received with payment_status={} (not paid) for session {}. Skipping upgrade.",
+                    paymentStatus, sessionId);
+            return;
+        }
+
+        if (userId == null || userId.isBlank()) {
+            log.error("MISSING user_id metadata on session {}. Cannot process upgrade.", sessionId);
+            throw new StripeWebhookException("Missing user_id metadata in checkout session " + sessionId);
+        }
+        if (tierName == null || tierName.isBlank()) {
+            log.error("MISSING tier metadata on session {}. Cannot process upgrade.", sessionId);
+            throw new StripeWebhookException("Missing tier metadata in checkout session " + sessionId);
+        }
+
+        UUID userUuid;
+        try {
+            userUuid = UUID.fromString(userId.trim());
+        } catch (IllegalArgumentException e) {
+            log.error("user_id metadata '{}' is not a valid UUID on session {}", userId, sessionId);
+            throw new StripeWebhookException("Invalid user_id in checkout session metadata: " + userId);
+        }
+
+        Tier newTier;
+        try {
+            newTier = Tier.valueOf(tierName.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.error("tier metadata '{}' is not a valid Tier on session {}", tierName, sessionId);
+            throw new StripeWebhookException("Invalid tier in checkout session metadata: " + tierName);
+        }
+
+        User user = findUserById(userUuid);
         LocalDate paymentDate = toLocalDate(event.getCreated());
 
         log.info("Upgrading user {} from {} to {} (payment date={})",
@@ -155,68 +234,172 @@ public class StripeService {
                 user,
                 newTier,
                 paymentDate,
-                session.getCustomer(),
-                session.getSubscription(),
+                customerId,
+                subscriptionId,
                 event.getId(),
                 null,
-                extractAmountCents(session),
-                Map.of("stripe_event_type", event.getType(),
-                        "session_id", session.getId())
+                amountTotal != null ? amountTotal.intValue() : null,
+                Map.of("stripe_event_type", event.getType(), "session_id", sessionId)
         );
 
-        log.info("Upgrade complete for user {}", user.getId());
+        log.info("Upgrade complete for user {} -> {}", user.getId(), newTier);
     }
 
     private void handleInvoicePaid(Event event) {
-        Invoice invoice = (Invoice) event.getDataObjectDeserializer()
-                .getObject()
-                .orElseThrow();
+        JsonObject raw = getRawJson(event);
+        Optional<StripeObject> deserialized = event.getDataObjectDeserializer().getObject();
 
-        if ("subscription_create".equals(invoice.getBillingReason())) {
-            log.info("Skipping invoice.paid (billing_reason=subscription_create) — " +
-                    "already handled by checkout.session.completed");
+        String invoiceId;
+        String customerId;
+        String billingReason;
+        Long amountPaid;
+
+        if (deserialized.isPresent() && deserialized.get() instanceof Invoice invoice) {
+            invoiceId     = invoice.getId();
+            customerId    = extractId(invoice.getCustomer());
+            billingReason = invoice.getBillingReason();
+            amountPaid    = invoice.getAmountPaid();
+        } else {
+            log.warn("Typed deserialization unavailable for invoice.paid (event {}). Using raw JSON.",
+                    event.getId());
+            invoiceId     = getAsString(raw, "id");
+            customerId    = extractIdFromJson(raw, "customer");
+            billingReason = getAsString(raw, "billing_reason");
+            amountPaid    = getAsLongOrNull(raw, "amount_paid");
+        }
+
+        if (customerId == null || customerId.isBlank()) {
+            log.error("invoice.paid event {} has no customer ID — cannot process renewal.", event.getId());
+            throw new StripeWebhookException("Missing customer ID on invoice " + invoiceId);
+        }
+
+        if ("subscription_create".equalsIgnoreCase(billingReason)) {
+            log.info("Skipping invoice.paid (billing_reason=subscription_create) for invoice {} — " +
+                    "first payment already handled by checkout.session.completed", invoiceId);
             return;
         }
 
-        User user = findUserByStripeCustomerId(invoice.getCustomer());
+        User user;
+        try {
+            user = findUserByStripeCustomerId(customerId);
+        } catch (StripeWebhookException e) {
+            // If the user genuinely doesn't have this customer ID yet (e.g. renewal
+            // webhook raced ahead of checkout.session.completed), don't crash —
+            // log and let Stripe retry; checkout.session.completed should land first.
+            log.warn("No user found yet for Stripe customer {} on invoice.paid (event {}). " +
+                    "This can happen if checkout.session.completed hasn't been processed yet. " +
+                    "Stripe will retry.", customerId, event.getId());
+            throw e;
+        }
 
         subscriptionService.renew(
                 user,
                 event.getId(),
-                invoice.getId(),
-                (int) (long) invoice.getAmountPaid(),
-                Map.of("stripe_event_type", event.getType(),
-                        "invoice_id", invoice.getId())
+                invoiceId,
+                amountPaid != null ? amountPaid.intValue() : null,
+                Map.of("stripe_event_type", event.getType(), "invoice_id", invoiceId)
         );
     }
 
     private void handleSubscriptionDeleted(Event event) {
-        Subscription sub = (Subscription) event.getDataObjectDeserializer()
-                .getObject()
-                .orElseThrow();
+        JsonObject raw = getRawJson(event);
+        Optional<StripeObject> deserialized = event.getDataObjectDeserializer().getObject();
 
-        User user = findUserByStripeCustomerId(sub.getCustomer());
+        String customerId;
+        if (deserialized.isPresent() && deserialized.get() instanceof Subscription sub) {
+            customerId = extractId(sub.getCustomer());
+        } else {
+            log.warn("Typed deserialization unavailable for customer.subscription.deleted (event {}). Using raw JSON.",
+                    event.getId());
+            customerId = extractIdFromJson(raw, "customer");
+        }
+
+        if (customerId == null || customerId.isBlank()) {
+            log.error("customer.subscription.deleted event {} has no customer ID.", event.getId());
+            throw new StripeWebhookException("Missing customer ID on subscription deletion event");
+        }
+
+        User user = findUserByStripeCustomerId(customerId);
         subscriptionService.downgradeToFree(
                 user, event.getId(), Map.of("stripe_event_type", event.getType()));
     }
 
     private void handlePaymentFailed(Event event) {
+        JsonObject raw = getRawJson(event);
+        Optional<StripeObject> deserialized = event.getDataObjectDeserializer().getObject();
 
-        Optional<Invoice> optionalInvoice = event.getDataObjectDeserializer()
-                .getObject()
-                .map(obj -> (Invoice) obj);
+        String customerId;
+        String invoiceId;
 
-        if (optionalInvoice.isEmpty()) {
-            log.error("Failed to deserialize Invoice from Stripe event id={}", event.getId());
-            return; // IMPORTANT: don't crash webhook
+        if (deserialized.isPresent() && deserialized.get() instanceof Invoice invoice) {
+            customerId = extractId(invoice.getCustomer());
+            invoiceId  = invoice.getId();
+        } else {
+            log.warn("Typed deserialization unavailable for invoice.payment_failed (event {}). Using raw JSON.",
+                    event.getId());
+            customerId = extractIdFromJson(raw, "customer");
+            invoiceId  = getAsString(raw, "id");
         }
 
-        Invoice invoice = optionalInvoice.get();
-
-        log.warn("Payment FAILED for customer {} invoice {} — grace period applies",
-                invoice.getCustomer(), invoice.getId());
+        // Informational only — never throw here. Grace period is enforced by
+        // TierExpirationScheduler, not by this handler. A user can have many
+        // payment_failed retries before the grace period actually expires.
+        log.warn("Payment FAILED for customer={} invoice={} — grace period applies, no immediate action taken",
+                customerId, invoiceId);
+        // TODO: publish PaymentFailedEvent → notify user via email
     }
+
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Stripe fields like `customer` and `subscription` can be either a plain ID string
+     * or an expanded object depending on API version / expand params.
+     * This handles both shapes safely via the typed SDK's ExpandableField pattern.
+     */
+    private String extractId(Object stripeField) {
+        if (stripeField == null) return null;
+        if (stripeField instanceof String s) return s;
+        // Stripe Java SDK ExpandableField objects have getId() via reflection-safe call
+        try {
+            var method = stripeField.getClass().getMethod("getId");
+            Object result = method.invoke(stripeField);
+            return result != null ? result.toString() : null;
+        } catch (Exception e) {
+            log.warn("Could not extract ID from Stripe field of type {}: {}",
+                    stripeField.getClass().getSimpleName(), e.getMessage());
+            return null;
+        }
+    }
+
+    private String extractIdFromJson(JsonObject raw, String fieldName) {
+        if (!raw.has(fieldName) || raw.get(fieldName).isJsonNull()) return null;
+        JsonElement el = raw.get(fieldName);
+        if (el.isJsonPrimitive()) {
+            return el.getAsString();
+        }
+        if (el.isJsonObject() && el.getAsJsonObject().has("id")) {
+            return el.getAsJsonObject().get("id").getAsString();
+        }
+        return null;
+    }
+
+    private JsonObject getRawJson(Event event) {
+        try {
+            String rawJsonString = event.getDataObjectDeserializer().getRawJson();
+            return JsonParser.parseString(rawJsonString).getAsJsonObject();
+        } catch (Exception e) {
+            log.error("Could not parse raw JSON from event {}: {}", event.getId(), e.getMessage());
+            throw new StripeWebhookException("Could not parse event data for " + event.getId());
+        }
+    }
+
+    private String getAsString(JsonObject obj, String key) {
+        return (obj.has(key) && !obj.get(key).isJsonNull()) ? obj.get(key).getAsString() : null;
+    }
+
+    private Long getAsLongOrNull(JsonObject obj, String key) {
+        return (obj.has(key) && !obj.get(key).isJsonNull()) ? obj.get(key).getAsLong() : null;
+    }
 
     private User findUserById(UUID userId) {
         return userRepository.findById(userId)
@@ -243,13 +426,11 @@ public class StripeService {
         return priceId;
     }
 
-    private Integer extractAmountCents(Session session) {
-        return session.getAmountTotal() != null
-                ? session.getAmountTotal().intValue()
-                : null;
-    }
-
     private LocalDate toLocalDate(Long epochSeconds) {
+        if (epochSeconds == null) {
+            log.warn("Event has null 'created' timestamp — using current date as fallback");
+            return LocalDate.now(ZoneOffset.UTC);
+        }
         return Instant.ofEpochSecond(epochSeconds)
                 .atZone(ZoneOffset.UTC)
                 .toLocalDate();
