@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="26056a8d-9295-408e-a33b-e32a3f370995" name="Changes" comment="init commit" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="66" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Record" />
+        <option value="Class" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;RupaliGupta1&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/RupaliGupta1/AI-BOS.git&quot;,
+    &quot;accountId&quot;: &quot;acd40360-8fcf-41c0-9f30-608fe74177b7&quot;
+  }
+}</component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="mavenHomeTypeForPersistence" value="WRAPPER" />
+      </MavenGeneralSettings>
+    </option>
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="2.125367586172177E-4" />
+      <entry key="MS500" value="0.1842837993156519" />
+      <entry key="S2" value="0.7436518377339876" />
+      <entry key="S5" value="2.5313022846086466" />
+      <entry key="S10" value="6.281130484100333" />
+      <entry key="S30" value="22.871400824124944" />
+      <entry key="S60" value="41.622410597269344" />
+      <entry key="M2" value="62.38645391358493" />
+      <entry key="M5" value="85.05917038803342" />
+      <entry key="M10" value="96.23217021461892" />
+      <entry key="M15" value="100.71584983754745" />
+      <entry key="M30" value="105.93825814901227" />
+      <entry key="H1" value="109.09393459400589" />
+      <entry key="H2" value="110.92777519189123" />
+      <entry key="H4" value="112.49019699363211" />
+      <entry key="D1" value="136.82459918625455" />
+      <entry key="W1" value="158.7652515402299" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="1.0" />
+      <entry key="MS500" value="1.0" />
+      <entry key="S2" value="1.0" />
+      <entry key="S5" value="1.0" />
+      <entry key="S10" value="1.0" />
+      <entry key="S30" value="1.0" />
+      <entry key="S60" value="1.0" />
+      <entry key="M2" value="1.0000000002364566" />
+      <entry key="M5" value="1.0002727471541903" />
+      <entry key="M10" value="1.0286047752877494" />
+      <entry key="M15" value="1.1348959638808793" />
+      <entry key="M30" value="1.636150481663723" />
+      <entry key="H1" value="2.381466987690036" />
+      <entry key="H2" value="3.0362285761448793" />
+      <entry key="H4" value="3.5234336032188094" />
+      <entry key="D1" value="6.969086551545158" />
+      <entry key="W1" value="10.205707239736153" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="0.0025961330804547453" />
+      <entry key="MS500" value="0.3676065401673951" />
+      <entry key="S2" value="1.3327974625696106" />
+      <entry key="S5" value="3.3306052866827085" />
+      <entry key="S10" value="7.17084008531718" />
+      <entry key="S30" value="23.829410661543452" />
+      <entry key="S60" value="42.59919997916257" />
+      <entry key="M2" value="63.373527205780995" />
+      <entry key="M5" value="86.05364214926553" />
+      <entry key="M10" value="97.25762577959897" />
+      <entry key="M15" value="101.84837959339748" />
+      <entry key="M30" value="107.57267141725723" />
+      <entry key="H1" value="111.47413157941173" />
+      <entry key="H2" value="113.96319329858056" />
+      <entry key="H4" value="116.01315253419837" />
+      <entry key="D1" value="143.7934749358993" />
+      <entry key="W1" value="168.97091104561088" />
+    </decayedShown>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 0
+}</component>
+  <component name="ProjectId" id="3F7XRyrY3S0qlxRFTJcEjz7UNiw" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "Spring Boot.IdentityServiceApplication.executor": "Run",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "master",
+    "junie.onboarding.icon.badge.shown": "true",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "vcs.log",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration name="IdentityServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <envs>
+        <env name="STRIPE_API_KEY" value="sk_test_51NMqx2SAbOkrMZPjXfoVEhhtvofUAkQmlINsXDAhEHY0tvjFZBhyvK870uAP9P2NYMyFxwVylD2ozaMuReUaNIkz00ubzQzfYc" />
+        <env name="STRIPE_PRICE_ENTERPRISE" value="price_1Tk4eGSAbOkrMZPjby8oZmdp" />
+        <env name="STRIPE_PRICE_PRO" value="price_1Tk5WzSAbOkrMZPjPCN4eD8p" />
+        <env name="STRIPE_WEBHOOK_SECRET" value="whsec_8ca519e3218a0b84eede71ad740852eb83ed47f52e842a2012877ddc289a20cd" />
+      </envs>
+      <module name="identity-service" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.aibos.identity.IdentityServiceApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-37e91769500f-intellij.indexing.shared.core-IU-261.25134.95" />
+        <option value="bundled-js-predefined-d6986cc7102b-31caf2ab9e3c-JavaScript-IU-261.25134.95" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="26056a8d-9295-408e-a33b-e32a3f370995" name="Changes" comment="" />
+      <created>1781427078230</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1781427078230</updated>
+      <workItem from="1781427082195" duration="12682000" />
+      <workItem from="1781543711083" duration="949000" />
+      <workItem from="1781624931211" duration="7136000" />
+      <workItem from="1781884510837" duration="10365000" />
+      <workItem from="1781948616210" duration="356000" />
+    </task>
+    <task id="LOCAL-00001" summary="init commit">
+      <option name="closed" value="true" />
+      <created>1781947649512</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1781947649512</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="OPEN_GENERIC_TABS">
+      <map>
+        <entry key="c7059388-6a5d-4738-8796-bd2d2920bd26" value="TOOL_WINDOW" />
+      </map>
+    </option>
+    <option name="TAB_STATES">
+      <map>
+        <entry key="c7059388-6a5d-4738-8796-bd2d2920bd26">
+          <value>
+            <State>
+              <option name="CUSTOM_BOOLEAN_PROPERTIES">
+                <map>
+                  <entry key="Show.Git.Branches" value="true" />
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="init commit" />
+    <option name="LAST_COMMIT_MESSAGE" value="init commit" />
+  </component>
+</project>
