@@ -68,6 +68,18 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Webhook Error", ex.getMessage());
     }
 
+    @ExceptionHandler(InvalidProjectStateTransitionException .class)
+    public ProblemDetail handleStripe(InvalidProjectStateTransitionException  ex) {
+        log.warn("Invalid Project State Transition: {}", ex.getMessage());
+        return problem(HttpStatus.CONFLICT, "Invalid Project State Transition", ex.getMessage());
+    }
+
+    @ExceptionHandler(ProjectNotFoundException.class)
+    public ProblemDetail handleStripe(ProjectNotFoundException ex) {
+        log.warn("Project Not Found: {}", ex.getMessage());
+        return problem(HttpStatus.NOT_FOUND, "Project Not Found", ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneral(Exception ex) {
         log.error("Unhandled exception", ex);
